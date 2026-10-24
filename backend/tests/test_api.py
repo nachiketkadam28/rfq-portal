@@ -133,3 +133,46 @@ def test_lead_model_prefers_strong_leads():
     strong, reasons = score(LeadInput(quantity=500, unit_price=40, days_to_deadline=25, message_words=40, prior_enquiries=6, prior_wins=4))
     assert strong > weak
     assert len(reasons) == 3
+
+
+def test_retrain_stores_model_in_db_not_on_disk(client):
+    from ml.lead_model import MODEL_PATH
+    from app import models
+    from app.auth import hash_password
+    from app.database import SessionLocal
+
+    db = SessionLocal()
+    db.add(models.User(name="Admin", company="Portal", email="admin@example.com", password_hash=hash_password("secret123"), role="admin"))
+    db.commit()
+    token = client.post("/api/auth/login", data={"username": "admin@example.com", "password": "secret123"}).json()["access_token"]
+    before = MODEL_PATH.stat().st_mtime
+
+    r = client.post("/api/admin/model/retrain", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200, r.text
+    assert 0.5 < r.json()["auc"] <= 1
+    assert db.query(models.ModelVersion).count() == 1
+    assert MODEL_PATH.stat().st_mtime == before  # bundled file untouched (read-only hosts)
+
+    # New enquiries are scored with the stored model.
+    sup = register(client, "s@example.com", "supplier")
+    buyer = register(client, "b@example.com", "buyer")
+    p = make_product(client, sup)
+    r = client.post("/api/enquiries", json={"product_id": p["id"], "quantity": 100}, headers=buyer)
+    assert r.status_code == 201
+    db.close()
+
+
+def test_postgres_url_normalised():
+    from app.database import _normalize
+
+    assert _normalize("postgres://u:p@h/db") == "postgresql+psycopg2://u:p@h/db"
+    assert _normalize("postgresql://u:p@h/db?sslmode=require") == "postgresql+psycopg2://u:p@h/db?sslmode=require"
+    assert _normalize("postgresql+psycopg2://u:p@h/db") == "postgresql+psycopg2://u:p@h/db"
+    assert _normalize("sqlite:///./x.db") == "sqlite:///./x.db"
+
+
+def test_cors_allows_configured_origin(client):
+    r = client.options("/api/products", headers={"Origin": "http://localhost:5173", "Access-Control-Request-Method": "GET"})
+    assert r.headers.get("access-control-allow-origin") == "http://localhost:5173"
+    r = client.options("/api/products", headers={"Origin": "https://evil.example.com", "Access-Control-Request-Method": "GET"})
+    assert "access-control-allow-origin" not in r.headers

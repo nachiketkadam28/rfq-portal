@@ -21,7 +21,7 @@ export function Users() {
         </div>
       </div>
       {error && <p className="error">{error}</p>}
-      {!rows ? <p className="loading">Loading accounts…</p> : (
+      {!rows ? !error && <p className="loading">Loading accounts…</p> : (
         <div className="table-wrap">
           <table className="spec">
             <thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Role</th><th className="num">Products</th><th className="num">Requests</th><th>Joined</th></tr></thead>

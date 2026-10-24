@@ -52,7 +52,7 @@ export function Enquiries() {
         )}
       </div>
       {error && <p className="error">{error}</p>}
-      {!data ? <p className="loading">Loading requests…</p> : data.length === 0 ? (
+      {!data ? !error && <p className="loading">Loading requests…</p> : data.length === 0 ? (
         <div className="table-wrap empty">
           <p className="h3">{status === 'all' ? 'No requests yet' : `No ${status} requests`}</p>
           <p>{isBuyer ? 'Find a part in the catalogue and send your first request.' : 'Requests appear here as soon as a buyer asks about one of your products.'}</p>

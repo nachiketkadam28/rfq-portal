@@ -4,10 +4,11 @@ import { api } from '../api'
 import { homeFor, useAuth } from '../auth'
 import { BrandMark } from '../components/Shell'
 
+// The hosted admin has its own password (SEED_ADMIN_PASSWORD), so only offer it locally.
 const DEMO = [
   ['Buyer', 'procurement@kestrel.example.com'],
   ['Supplier', 'sales@forgeline.example.com'],
-  ['Admin', 'admin@rfq.example.com'],
+  ...(import.meta.env.DEV ? [['Admin', 'admin@rfq.example.com']] : []),
 ] as const
 
 function Side() {

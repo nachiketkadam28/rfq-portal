@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from sqlalchemy import String, Integer, Float, ForeignKey, DateTime, Date, Text
+from sqlalchemy import String, Integer, Float, ForeignKey, DateTime, Date, Text, LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database import Base
 
@@ -62,3 +62,14 @@ class Quotation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     enquiry = relationship("Enquiry", back_populates="quotations")
+
+
+class ModelVersion(Base):
+    """A retrained lead-scoring model. Stored in the DB so every serverless instance sees it."""
+    __tablename__ = "model_versions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    blob: Mapped[bytes] = mapped_column(LargeBinary)
+    auc: Mapped[float] = mapped_column(Float)
+    training_rows: Mapped[int] = mapped_column(Integer)
+    real_outcomes: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

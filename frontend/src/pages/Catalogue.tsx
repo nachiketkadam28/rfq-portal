@@ -57,7 +57,7 @@ export function Catalogue() {
         </aside>
         <section aria-live="polite">
           {products.error && <p className="error">{products.error}</p>}
-          {!list ? <p className="loading">Loading parts…</p> : (
+          {!list ? !products.error && <p className="loading">Loading parts…</p> : (
             <>
               <p className="small muted" style={{ margin: '0 0 0.5rem' }}>
                 {list.length} {list.length === 1 ? 'part' : 'parts'}

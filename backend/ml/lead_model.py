@@ -3,10 +3,12 @@
 The model is a scaled logistic regression, which keeps it fast to train and lets us
 explain each score as per-feature contributions. With no real history yet it is
 trained on synthetic enquiries; once suppliers mark enquiries won/lost, those
-labelled rows are mixed in on retrain.
+labelled rows are mixed in on retrain. Retrained models are stored in the database
+(app.scoring), not on disk, because serverless hosts have a read-only filesystem.
 """
 from __future__ import annotations
 
+import io
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -100,7 +102,8 @@ def synthetic_dataset(n: int = 4000, seed: int = 7) -> tuple[np.ndarray, np.ndar
     return np.array(rows), np.array(labels)
 
 
-def train(extra_X: np.ndarray | None = None, extra_y: np.ndarray | None = None) -> dict:
+def fit(extra_X: np.ndarray | None = None, extra_y: np.ndarray | None = None) -> tuple[Pipeline, dict]:
+    """Train a model in memory. Persisting it is the caller's job (see app.scoring)."""
     X, y = synthetic_dataset()
     real = 0
     if extra_X is not None and len(extra_X):
@@ -113,30 +116,33 @@ def train(extra_X: np.ndarray | None = None, extra_y: np.ndarray | None = None) 
     model.fit(X_tr, y_tr)
     auc = float(roc_auc_score(y_te, model.predict_proba(X_te)[:, 1]))
     model.fit(X, y)
-    joblib.dump(model, MODEL_PATH)
-    return {"auc": round(auc, 3), "training_rows": int(len(X)), "real_outcomes": real}
+    return model, {"auc": round(auc, 3), "training_rows": int(len(X)), "real_outcomes": real}
 
 
-_model: Pipeline | None = None
+def dumps(model: Pipeline) -> bytes:
+    buf = io.BytesIO()
+    joblib.dump(model, buf)
+    return buf.getvalue()
 
 
-def load() -> Pipeline:
-    global _model
-    if _model is None:
-        if not MODEL_PATH.exists():
-            train()
-        _model = joblib.load(MODEL_PATH)
-    return _model
+def loads(blob: bytes) -> Pipeline:
+    return joblib.load(io.BytesIO(blob))
 
 
-def reload() -> None:
-    global _model
-    _model = None
+_bundled: Pipeline | None = None
 
 
-def score(x: LeadInput) -> tuple[float, list[dict]]:
+def bundled() -> Pipeline:
+    """The model shipped with the code. Never writes to disk, so it works on read-only hosts."""
+    global _bundled
+    if _bundled is None:
+        _bundled = joblib.load(MODEL_PATH) if MODEL_PATH.exists() else fit()[0]
+    return _bundled
+
+
+def score(x: LeadInput, model: Pipeline | None = None) -> tuple[float, list[dict]]:
     """Return (score 0-100, top reasons) for one enquiry."""
-    model = load()
+    model = model or bundled()
     f = np.array([featurize(x)])
     prob = float(model.predict_proba(f)[0, 1])
     scaled = model.named_steps["scale"].transform(f)[0]
@@ -150,4 +156,7 @@ def score(x: LeadInput) -> tuple[float, list[dict]]:
 
 
 if __name__ == "__main__":
-    print(train())
+    # Rebuild the bundled model file (run locally, then commit lead_model.joblib).
+    m, info = fit()
+    joblib.dump(m, MODEL_PATH)
+    print(info)

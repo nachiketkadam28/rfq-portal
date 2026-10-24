@@ -48,7 +48,7 @@ export function MyProducts() {
       </div>
       {notice && <p className="notice" role="status">{notice}</p>}
       {error && <p className="error">{error}</p>}
-      {!data ? <p className="loading">Loading products…</p> : data.length === 0 ? (
+      {!data ? !error && <p className="loading">Loading products…</p> : data.length === 0 ? (
         <div className="table-wrap empty">
           <p className="h3">You have no products listed</p>
           <p>List your first part so buyers can find it and send you requests.</p>

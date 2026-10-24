@@ -1,17 +1,23 @@
 """Populate the database with demo data.  Run from backend/:  python -m app.seed
 
-Demo accounts (password for all: demo1234):
-  admin@rfq.example.com      admin
+To seed a hosted database (this WIPES it), run locally with its URL:
+  DATABASE_URL="postgresql://..." SEED_ADMIN_PASSWORD="<strong password>" python -m app.seed --yes
+
+Demo accounts (password for buyers/suppliers: demo1234):
+  admin@rfq.example.com      admin  (password: SEED_ADMIN_PASSWORD, or demo1234 on local SQLite)
   sales@forgeline.example.com, sales@apexvalves.example.com, orders@nordpoly.example.com   suppliers
   procurement@kestrel.example.com, buying@meridian.example.com, ops@halcyon.example.com    buyers
 """
+import argparse
+import os
 import random
+import sys
 from datetime import date, datetime, timedelta
 
 from .auth import hash_password
-from .database import Base, SessionLocal, engine
+from .database import Base, SessionLocal, engine, is_sqlite
 from . import models
-from .scoring import apply_score
+from .scoring import apply_score, retrain
 
 PASSWORD = "demo1234"
 
@@ -53,7 +59,7 @@ MESSAGES = [
 ]
 
 
-def run(reset: bool = True) -> None:
+def run(reset: bool = True, admin_password: str = PASSWORD) -> None:
     if reset:
         Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
@@ -61,7 +67,8 @@ def run(reset: bool = True) -> None:
     db = SessionLocal()
     pw = hash_password(PASSWORD)
 
-    db.add(models.User(name="Portal Admin", company="RFQ Portal", email="admin@rfq.example.com", password_hash=pw, role="admin"))
+    db.add(models.User(name="Portal Admin", company="RFQ Portal", email="admin@rfq.example.com",
+                       password_hash=hash_password(admin_password), role="admin"))
     products: list[models.Product] = []
     suppliers: list[models.User] = []
     for name, company, email, items in SUPPLIERS:
@@ -106,9 +113,29 @@ def run(reset: bool = True) -> None:
                 # Higher-scored leads close as won more often, so retraining has a real signal.
                 e.status = "won" if rnd.random() < 0.05 + e.lead_score / 160 else "lost"
     db.commit()
+    # Train on the seeded outcomes and store the model in the DB, so hosted instances use it.
+    info = retrain(db)
     db.close()
     print(f"Seeded {len(products)} products, {len(buyers)} buyers, {len(suppliers)} suppliers, 45 enquiries.")
+    print(f"Lead model trained: AUC {info['auc']} on {info['training_rows']} rows ({info['real_outcomes']} real outcomes).")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Wipe the database and load demo data.")
+    parser.add_argument("--yes", action="store_true", help="confirm wiping a non-SQLite database")
+    args = parser.parse_args()
+
+    target = engine.url.render_as_string(hide_password=True)
+    admin_password = os.getenv("SEED_ADMIN_PASSWORD")
+    if not is_sqlite:
+        if not args.yes:
+            sys.exit(f"Refusing to wipe {target} without --yes.")
+        # The demo login page advertises demo1234, so a hosted admin must get its own password.
+        if not admin_password or len(admin_password) < 12:
+            sys.exit("Set SEED_ADMIN_PASSWORD (12+ characters) to seed a hosted database.")
+    print(f"Seeding {target} ...")
+    run(admin_password=admin_password or PASSWORD)
 
 
 if __name__ == "__main__":
-    run()
+    main()

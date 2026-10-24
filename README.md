@@ -27,6 +27,28 @@ Demo accounts (password `demo1234`): `procurement@kestrel.example.com` (buyer),
 
 Tests: `cd backend && venv\Scripts\python -m pytest`
 
+## Deploying (Vercel or any serverless host)
+
+Backend environment variables:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Hosted Postgres (e.g. Neon). `postgres://` and `postgresql://` both work. SQLite cannot persist on serverless. |
+| `SECRET_KEY` | Long random string for signing logins. |
+| `CORS_ORIGINS` | Your frontend URL(s), comma-separated, e.g. `https://rfq-desk.vercel.app`. |
+| `CORS_ORIGIN_REGEX` | Optional, for preview deploys, e.g. `https://rfq-desk-[\w-]+\.vercel\.app`. |
+
+Seed the hosted database once, from your machine (this wipes it):
+
+```bash
+cd backend
+DATABASE_URL="postgresql://..." SEED_ADMIN_PASSWORD="a-long-password" venv/Scripts/python -m app.seed --yes
+```
+
+The lead model never writes to disk at runtime: the bundled `ml/lead_model.joblib` is used until an
+admin retrains, and retrained models are stored in the `model_versions` table so every instance
+picks them up.
+
 ## API
 
 | Method | Path | Who |

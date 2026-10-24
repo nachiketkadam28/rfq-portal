@@ -32,8 +32,23 @@ def lead_input(db: Session, enquiry: models.Enquiry, product: models.Product, to
     )
 
 
+# (version id, model) of the newest retrained model this process has loaded.
+_active: tuple[int, object] | None = None
+
+
+def current_model(db: Session):
+    """Newest model in the DB, falling back to the bundled one. Cheap: one indexed max() per call."""
+    global _active
+    latest = db.scalar(select(func.max(models.ModelVersion.id)))
+    if latest is None:
+        return lead_model.bundled()
+    if _active is None or _active[0] != latest:
+        _active = (latest, lead_model.loads(db.get(models.ModelVersion, latest).blob))
+    return _active[1]
+
+
 def apply_score(db: Session, enquiry: models.Enquiry, product: models.Product, today: date | None = None) -> None:
-    score, reasons = lead_model.score(lead_input(db, enquiry, product, today))
+    score, reasons = lead_model.score(lead_input(db, enquiry, product, today), current_model(db))
     enquiry.lead_score = score
     enquiry.score_reasons = json.dumps(reasons)
 
@@ -43,8 +58,9 @@ def retrain(db: Session) -> dict:
     closed = db.scalars(select(models.Enquiry).where(models.Enquiry.status.in_(["won", "lost"]))).all()
     X = [lead_model.featurize(lead_input(db, e, e.product, today=e.created_at.date())) for e in closed]
     y = [1 if e.status == "won" else 0 for e in closed]
-    info = lead_model.train(np.array(X) if X else None, np.array(y) if y else None)
-    lead_model.reload()
+    model, info = lead_model.fit(np.array(X) if X else None, np.array(y) if y else None)
+    db.add(models.ModelVersion(blob=lead_model.dumps(model), **info))
+    db.flush()
     for e in db.scalars(select(models.Enquiry).where(models.Enquiry.status.in_(["new", "quoted"]))):
         apply_score(db, e, e.product, today=e.created_at.date())
     db.commit()
