@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "C:\\Users\\Nachiket\\PROJECTS\\rfq-portal\\backend\\venv\\Scripts\\python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--reload", "--port", "8000"],
+      "cwd": "C:\\Users\\Nachiket\\PROJECTS\\rfq-portal\\backend",
+      "port": 8000
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "C:\\Users\\Nachiket\\PROJECTS\\rfq-portal\\frontend",
+      "port": 5173
+    }
+  ]
+}
