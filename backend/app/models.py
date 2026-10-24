@@ -73,3 +73,11 @@ class ModelVersion(Base):
     training_rows: Mapped[int] = mapped_column(Integer)
     real_outcomes: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class RateEvent(Base):
+    """One rate-limited action (e.g. a failed login) for app.ratelimit."""
+    __tablename__ = "rate_events"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bucket: Mapped[str] = mapped_column(String(200), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)

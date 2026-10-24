@@ -28,7 +28,7 @@ function Side() {
 }
 
 export function Login() {
-  const { signIn } = useAuth()
+  const { signIn, expired } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState('')
@@ -55,6 +55,7 @@ export function Login() {
         <h2 className="h2">Sign in</h2>
         <form onSubmit={submit}>
           {error && <p className="error" role="alert">{error}</p>}
+          {expired && !error && <p className="notice" role="status">Your session expired. Sign in again to continue.</p>}
           <div className="field">
             <label htmlFor="email">Work email</label>
             <input id="email" className="input" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} />
@@ -123,21 +124,21 @@ export function Register() {
           <div className="row-fields">
             <div className="field">
               <label htmlFor="name">Your name</label>
-              <input id="name" className="input" required minLength={2} autoComplete="name" value={form.name} onChange={set('name')} />
+              <input id="name" className="input" required minLength={2} maxLength={100} autoComplete="name" value={form.name} onChange={set('name')} />
             </div>
             <div className="field">
               <label htmlFor="company">Company</label>
-              <input id="company" className="input" required minLength={2} autoComplete="organization" value={form.company} onChange={set('company')} />
+              <input id="company" className="input" required minLength={2} maxLength={150} autoComplete="organization" value={form.company} onChange={set('company')} />
             </div>
           </div>
           <div className="field">
             <label htmlFor="remail">Work email</label>
-            <input id="remail" className="input" type="email" required autoComplete="email" value={form.email} onChange={set('email')} />
+            <input id="remail" className="input" type="email" required maxLength={150} autoComplete="email" value={form.email} onChange={set('email')} />
           </div>
           <div className="field">
             <label htmlFor="rpw">Password</label>
-            <input id="rpw" className="input" type="password" required minLength={6} autoComplete="new-password" value={form.password} onChange={set('password')} />
-            <span className="hint">At least 6 characters.</span>
+            <input id="rpw" className="input" type="password" required minLength={8} maxLength={72} autoComplete="new-password" value={form.password} onChange={set('password')} />
+            <span className="hint">8 to 72 characters.</span>
           </div>
           <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</button>
         </form>

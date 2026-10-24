@@ -49,6 +49,9 @@ BUYERS = [
     ("Sofia Brandt", "Halcyon Water Systems", "ops@halcyon.example.com"),
 ]
 
+# Logins advertised on the public sign-in page. They can't edit the catalogue (see routers/products.py).
+DEMO_EMAILS = frozenset([e for _, _, e, _ in SUPPLIERS] + [e for _, _, e in BUYERS])
+
 MESSAGES = [
     "",
     "Please quote best price.",

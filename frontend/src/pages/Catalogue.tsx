@@ -40,7 +40,7 @@ export function Catalogue() {
           <div className="search">
             <svg viewBox="0 0 16 16" aria-hidden><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="m11 11 3.5 3.5" stroke="currentColor" strokeWidth="1.6" /></svg>
             <label htmlFor="q" className="sr-only">Search parts</label>
-            <input id="q" className="input" placeholder="Bolt, flange, PTFE…" value={q} onChange={e => setQ(e.target.value)} />
+            <input id="q" className="input" maxLength={100} placeholder="Bolt, flange, PTFE…" value={q} onChange={e => setQ(e.target.value)} />
           </div>
           <h3>Category</h3>
           {facets.data?.categories.map(f => (
@@ -60,7 +60,7 @@ export function Catalogue() {
           {!list ? !products.error && <p className="loading">Loading parts…</p> : (
             <>
               <p className="small muted" style={{ margin: '0 0 0.5rem' }}>
-                {list.length} {list.length === 1 ? 'part' : 'parts'}
+                {list.length === 100 ? 'Showing the first 100 parts. Search or filter to narrow them down.' : <>{list.length} {list.length === 1 ? 'part' : 'parts'}</>}
                 {params.size > 0 && <> <button className="btn-quiet" style={{ border: 0, background: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }} onClick={() => { setQ(''); setParams({}) }}>Clear filters</button></>}
               </p>
               <div className="table-wrap">
@@ -151,7 +151,7 @@ export function ProductPage() {
               <div className="row-fields">
                 <div className="field">
                   <label htmlFor="qty">Quantity ({p.unit}s)</label>
-                  <input id="qty" className="input fig" type="number" min={1} required value={qty} onChange={e => setQty(e.target.value)} />
+                  <input id="qty" className="input fig" type="number" min={1} max={10000000} required value={qty} onChange={e => setQty(e.target.value)} />
                 </div>
                 <div className="field">
                   <label htmlFor="by">Needed by</label>
@@ -160,7 +160,7 @@ export function ProductPage() {
               </div>
               <div className="field">
                 <label htmlFor="msg">Requirements</label>
-                <textarea id="msg" className="input" value={message} onChange={e => setMessage(e.target.value)} placeholder="Certificates, inspection, delivery terms, packing…" />
+                <textarea id="msg" className="input" maxLength={5000} value={message} onChange={e => setMessage(e.target.value)} placeholder="Certificates, inspection, delivery terms, packing…" />
                 <span className="hint">Specific requests get faster, more accurate quotes.</span>
               </div>
               {estimate !== null && <p className="small muted">At list price this order is about <b className="fig">{unitMoney(estimate)}</b>. The supplier will confirm the final price.</p>}

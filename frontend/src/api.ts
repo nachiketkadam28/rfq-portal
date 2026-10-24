@@ -52,6 +52,8 @@ export interface Dashboard {
 export interface AdminUser extends User { created_at: string; products: number; enquiries: number }
 
 const TOKEN_KEY = 'rfq.token'
+/** Fired when the server rejects the stored token; AuthProvider signs the user out. */
+export const SESSION_EXPIRED = 'rfq:session-expired'
 
 export function getToken(): string | null {
   try { return localStorage.getItem(TOKEN_KEY) } catch { return null }
@@ -80,7 +82,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     let msg = `Request failed (${res.status})`
     if (typeof body?.detail === 'string') msg = body.detail
     else if (Array.isArray(body?.detail)) msg = body.detail.map((d: { loc: string[]; msg: string }) => `${d.loc.at(-1)}: ${d.msg}`).join('; ')
-    if (res.status === 401 && token) setToken(null)
+    if (res.status === 401 && token) {
+      setToken(null)
+      window.dispatchEvent(new Event(SESSION_EXPIRED))
+    }
     throw new ApiError(res.status, msg)
   }
   return body as T
@@ -118,7 +123,7 @@ export const api = {
 
   dashboard: () => request<Dashboard>('/dashboard'),
   users: () => request<AdminUser[]>('/admin/users'),
-  retrain: () => request<{ auc: number; training_rows: number; real_outcomes: number }>('/admin/model/retrain', { method: 'POST' }),
+  retrain: () => request<{ auc: number; training_rows: number; real_outcomes: number; activated: boolean }>('/admin/model/retrain', { method: 'POST' }),
 }
 
 export const money = (n: number) =>

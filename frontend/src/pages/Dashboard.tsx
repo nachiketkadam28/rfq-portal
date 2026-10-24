@@ -14,7 +14,8 @@ const STAGE_COLOR: Record<Status, string> = {
 export function Dashboard() {
   const { user } = useAuth()
   const { data: d, error } = useLoad(() => api.dashboard(), [])
-  const [model, setModel] = useState<{ auc: number; training_rows: number; real_outcomes: number } | null>(null)
+  const [model, setModel] = useState<{ auc: number; training_rows: number; real_outcomes: number; activated: boolean } | null>(null)
+  const [retrainError, setRetrainError] = useState<string | null>(null)
   const [training, setTraining] = useState(false)
 
   if (error) return <p className="error">{error}</p>
@@ -111,18 +112,27 @@ export function Dashboard() {
         <section className="panel" style={{ marginTop: '1.25rem' }} aria-labelledby="model-h">
           <h2 className="h2" id="model-h">Lead scoring model</h2>
           <p className="muted" style={{ maxWidth: '65ch' }}>
-            Retraining adds every won and lost request to the training data, then rescores all open requests.
-            Do this after a batch of requests has closed.
+            Retraining adds won and lost requests that received a quote (up to 25 per buyer and per supplier),
+            then rescores all open requests. The new model is only used if it still ranks leads well.
           </p>
-          {model && (
+          {retrainError && <p className="error" role="alert">{retrainError}</p>}
+          {model && (model.activated ? (
             <p className="notice" role="status">
               Retrained on {model.training_rows.toLocaleString()} rows, including {model.real_outcomes} real outcomes.
               Ranking accuracy (AUC) on held-out data: <b className="fig">{model.auc}</b>.
             </p>
-          )}
+          ) : (
+            <p className="error" role="status">
+              The retrained model ranked leads poorly (AUC <span className="fig">{model.auc}</span>), so the current model was kept.
+              Check recent outcomes for bulk or suspicious won/lost changes.
+            </p>
+          ))}
           <button className="btn" disabled={training} onClick={async () => {
             setTraining(true)
-            try { setModel(await api.retrain()) } finally { setTraining(false) }
+            setRetrainError(null)
+            try { setModel(await api.retrain()) }
+            catch (err) { setRetrainError((err as Error).message) }
+            finally { setTraining(false) }
           }}>{training ? 'Retraining…' : 'Retrain and rescore'}</button>
         </section>
       )}

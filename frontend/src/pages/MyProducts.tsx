@@ -82,22 +82,22 @@ export function MyProducts() {
           {formError && <p className="error" role="alert">{formError}</p>}
           <div className="field">
             <label htmlFor="pn">Part name</label>
-            <input id="pn" className="input" required value={form.name} onChange={set('name')} placeholder="Hex bolt M12 x 60" />
+            <input id="pn" className="input" required maxLength={150} value={form.name} onChange={set('name')} placeholder="Hex bolt M12 x 60" />
           </div>
           <div className="row-fields">
             <div className="field">
               <label htmlFor="pc">Category</label>
-              <input id="pc" className="input" required value={form.category} onChange={set('category')} placeholder="Fasteners" />
+              <input id="pc" className="input" required maxLength={80} value={form.category} onChange={set('category')} placeholder="Fasteners" />
             </div>
             <div className="field">
               <label htmlFor="pm">Material</label>
-              <input id="pm" className="input" required value={form.material} onChange={set('material')} placeholder="Stainless Steel 304" />
+              <input id="pm" className="input" required maxLength={80} value={form.material} onChange={set('material')} placeholder="Stainless Steel 304" />
             </div>
           </div>
           <div className="row-fields">
             <div className="field">
               <label htmlFor="pp">List price (USD)</label>
-              <input id="pp" className="input fig" type="number" step="0.01" min="0.01" required value={form.unit_price || ''} onChange={set('unit_price')} />
+              <input id="pp" className="input fig" type="number" step="0.01" min="0.01" max="1000000" required value={form.unit_price || ''} onChange={set('unit_price')} />
             </div>
             <div className="field">
               <label htmlFor="pu">Sold per</label>
@@ -108,7 +108,7 @@ export function MyProducts() {
           </div>
           <div className="field">
             <label htmlFor="pd">Description</label>
-            <textarea id="pd" className="input" value={form.description} onChange={set('description')} placeholder="Standards, finish, certificates…" />
+            <textarea id="pd" className="input" maxLength={5000} value={form.description} onChange={set('description')} placeholder="Standards, finish, certificates…" />
           </div>
           <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
             <button type="button" className="btn btn-quiet" onClick={() => dialog.current?.close()}>Cancel</button>

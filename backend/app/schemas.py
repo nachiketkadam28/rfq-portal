@@ -1,14 +1,25 @@
 from datetime import date, datetime
 from typing import Literal
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
+
+# Upper bounds keep values inside DB column types and keep totals finite.
+MAX_PRICE = 1_000_000
+MAX_QUANTITY = 10_000_000
 
 
 class UserCreate(BaseModel):
-    name: str = Field(min_length=2)
-    company: str = Field(min_length=2)
-    email: EmailStr
-    password: str = Field(min_length=6)
+    name: str = Field(min_length=2, max_length=100)
+    company: str = Field(min_length=2, max_length=150)
+    email: EmailStr = Field(max_length=150)
+    password: str = Field(min_length=8)
     role: Literal["buyer", "supplier"]       # nobody can self-register as admin
+
+    @field_validator("password")
+    @classmethod
+    def password_fits_bcrypt(cls, v: str) -> str:
+        if len(v.encode()) > 72:
+            raise ValueError("must be at most 72 bytes")
+        return v
 
 
 class UserOut(BaseModel):
@@ -27,16 +38,23 @@ class Token(BaseModel):
 
 
 class ProductIn(BaseModel):
+    name: str = Field(min_length=1, max_length=150)
+    category: str = Field(min_length=1, max_length=80)
+    material: str = Field(min_length=1, max_length=80)
+    unit_price: float = Field(gt=0, le=MAX_PRICE)
+    unit: str = Field("piece", min_length=1, max_length=20)
+    description: str = Field("", max_length=5000)
+
+
+class ProductOut(BaseModel):
+    # Plain fields (no input limits) so rows stored before a limit existed still serialize.
+    model_config = ConfigDict(from_attributes=True)
     name: str
     category: str
     material: str
-    unit_price: float = Field(gt=0)
-    unit: str = "piece"
-    description: str = ""
-
-
-class ProductOut(ProductIn):
-    model_config = ConfigDict(from_attributes=True)
+    unit_price: float
+    unit: str
+    description: str
     id: int
     supplier_id: int
     supplier_company: str | None = None
@@ -44,19 +62,29 @@ class ProductOut(ProductIn):
 
 class EnquiryIn(BaseModel):
     product_id: int
-    quantity: int = Field(gt=0)
+    quantity: int = Field(gt=0, le=MAX_QUANTITY)
     required_by: date | None = None
-    message: str = ""
+    message: str = Field("", max_length=5000)
+
+    @field_validator("required_by")
+    @classmethod
+    def not_in_past(cls, v: date | None) -> date | None:
+        if v is not None and v < date.today():
+            raise ValueError("must be today or later")
+        return v
 
 
 class QuotationIn(BaseModel):
-    price_per_unit: float = Field(gt=0)
-    delivery_days: int = Field(gt=0)
-    notes: str = ""
+    price_per_unit: float = Field(gt=0, le=MAX_PRICE)
+    delivery_days: int = Field(gt=0, le=3650)
+    notes: str = Field("", max_length=2000)
 
 
-class QuotationOut(QuotationIn):
+class QuotationOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    price_per_unit: float
+    delivery_days: int
+    notes: str
     id: int
     created_at: datetime
 

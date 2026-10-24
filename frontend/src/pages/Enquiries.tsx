@@ -242,16 +242,16 @@ function QuoteForm({ enquiry, onSent }: { enquiry: Enquiry; onSent: (e: Enquiry)
         <div className="row-fields">
           <div className="field">
             <label htmlFor="price">Price per {enquiry.product_unit} (USD)</label>
-            <input id="price" className="input fig" type="number" step="0.01" min="0.01" required value={price} onChange={e => setPrice(e.target.value)} />
+            <input id="price" className="input fig" type="number" step="0.01" min="0.01" max="1000000" required value={price} onChange={e => setPrice(e.target.value)} />
           </div>
           <div className="field">
             <label htmlFor="days">Delivery (days)</label>
-            <input id="days" className="input fig" type="number" min="1" required value={days} onChange={e => setDays(e.target.value)} />
+            <input id="days" className="input fig" type="number" min="1" max="3650" required value={days} onChange={e => setDays(e.target.value)} />
           </div>
         </div>
         <div className="field">
           <label htmlFor="notes">Terms and notes</label>
-          <textarea id="notes" className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Incoterms, validity, certificates included…" />
+          <textarea id="notes" className="input" maxLength={2000} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Incoterms, validity, certificates included…" />
         </div>
         {Number(price) > 0 && (
           <p className="small muted">

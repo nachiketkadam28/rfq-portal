@@ -77,6 +77,8 @@ def create_enquiry(
 def list_enquiries(
     status_: Literal["new", "quoted", "won", "lost"] | None = Query(None, alias="status"),
     sort: Literal["score", "recent"] = "recent",
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -91,6 +93,7 @@ def list_enquiries(
         stmt = stmt.order_by(models.Enquiry.lead_score.desc())
     else:
         stmt = stmt.order_by(models.Enquiry.created_at.desc())
+    stmt = stmt.order_by(models.Enquiry.id.desc()).limit(limit).offset(offset)
     return [to_out(e, user) for e in db.scalars(stmt).unique()]
 
 

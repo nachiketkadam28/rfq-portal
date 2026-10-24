@@ -53,15 +53,42 @@ def apply_score(db: Session, enquiry: models.Enquiry, product: models.Product, t
     enquiry.score_reasons = json.dumps(reasons)
 
 
+# Outcomes are set by buyers and suppliers, so one account must not be able to swing the shared model.
+MAX_OUTCOMES_PER_ACCOUNT = 25
+MIN_AUC_TO_ACTIVATE = 0.65
+
+
+def _trusted_outcomes(db: Session) -> list[models.Enquiry]:
+    """Closed enquiries that went through a real quote, capped per buyer and per supplier (newest first)."""
+    closed = db.scalars(
+        select(models.Enquiry)
+        .where(models.Enquiry.status.in_(["won", "lost"]), models.Enquiry.quotations.any())
+        .order_by(models.Enquiry.created_at.desc())
+    ).all()
+    per_buyer: dict[int, int] = {}
+    per_supplier: dict[int, int] = {}
+    kept = []
+    for e in closed:
+        b, s = e.buyer_id, e.product.supplier_id
+        if per_buyer.get(b, 0) >= MAX_OUTCOMES_PER_ACCOUNT or per_supplier.get(s, 0) >= MAX_OUTCOMES_PER_ACCOUNT:
+            continue
+        per_buyer[b] = per_buyer.get(b, 0) + 1
+        per_supplier[s] = per_supplier.get(s, 0) + 1
+        kept.append(e)
+    return kept
+
+
 def retrain(db: Session) -> dict:
-    """Retrain on synthetic data plus every enquiry with a known outcome, then rescore open ones."""
-    closed = db.scalars(select(models.Enquiry).where(models.Enquiry.status.in_(["won", "lost"]))).all()
+    """Retrain on synthetic data plus trusted real outcomes; activate only if it still ranks well."""
+    closed = _trusted_outcomes(db)
     X = [lead_model.featurize(lead_input(db, e, e.product, today=e.created_at.date())) for e in closed]
     y = [1 if e.status == "won" else 0 for e in closed]
     model, info = lead_model.fit(np.array(X) if X else None, np.array(y) if y else None)
+    if info["auc"] < MIN_AUC_TO_ACTIVATE:
+        return {**info, "activated": False}
     db.add(models.ModelVersion(blob=lead_model.dumps(model), **info))
     db.flush()
     for e in db.scalars(select(models.Enquiry).where(models.Enquiry.status.in_(["new", "quoted"]))):
         apply_score(db, e, e.product, today=e.created_at.date())
     db.commit()
-    return info
+    return {**info, "activated": True}
