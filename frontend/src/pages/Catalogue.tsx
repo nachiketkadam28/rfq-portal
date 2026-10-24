@@ -65,10 +65,17 @@ export function Catalogue() {
               </p>
               <div className="table-wrap">
                 {list.length === 0 ? (
-                  <div className="empty">
-                    <p className="h3">No parts match these filters</p>
-                    <p>Try a broader search term or remove a filter.</p>
-                  </div>
+                  params.size > 0 ? (
+                    <div className="empty">
+                      <p className="h3">No parts match these filters</p>
+                      <p>Try a broader search term or remove a filter.</p>
+                    </div>
+                  ) : (
+                    <div className="empty">
+                      <p className="h3">No parts listed yet</p>
+                      <p>Parts appear here once suppliers add them. Suppliers can create an account and list their first product.</p>
+                    </div>
+                  )
                 ) : list.map(p => (
                   <Link key={p.id} to={`/catalogue/${p.id}`} className="part">
                     <span className="part-name">{p.name}</span>
